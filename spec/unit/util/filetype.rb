@@ -169,20 +169,30 @@ describe Puppet::Util::FileType, "When using the flatfile type" do
 
     before :each do
         @path = tempfile
+        @text = "This is some text\n"
+        @flatfile = Puppet::Util::FileType.filetype(:flat).new(@path)
     end
 
     it "should sync the changes to the filesystem" do
-        text = "This is some text\n"
+        @flatfile.write(@text)
+        File.read(@path).should == @text
 
-        flatfile = Puppet::Util::FileType.filetype(:flat).new(@path)
-        flatfile.write(text)
-        File.read(@path).should == text
+        File.open(@path, "w") { |f| f.print "untracked modification" }
+        File.read(@path).should_not == @text
 
-        File.open(@path, "w") { |f| f.puts "untracked modification" }
-        File.read(@path).should_not == text
+        @flatfile.write(@text)
+        File.read(@path).should == @text
+        @flatfile.read.should == @text
+    end
 
-        flatfile.write(text)
-        File.read(@path).should == text
-        flatfile.read.should == text
+    it "should write changes to a tempfile" do
+        @flatfile.write_to_tempfile(@text) do |tmp_path|
+            File.read(tmp_path).should == @text
+        end
+    end
+
+    it "should write changes atomically" do
+        @flatfile.expects(:atomic_write).with(@text)
+        @flatfile.write(@text)
     end
 end

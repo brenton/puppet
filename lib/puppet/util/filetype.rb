@@ -104,7 +104,20 @@ class Puppet::Util::FileType
         # Overwrite the file.
         def write(text)
             backup()
-            File.open(@path, "w") { |f| f.print text; f.flush }
+            atomic_write(text)
+        end
+
+        def atomic_write(text)
+            write_to_tempfile(text) {|tmp_path| FileUtils.cp(tmp_path, @path)}
+        end
+
+        def write_to_tempfile(text)
+            require "tempfile"
+            Tempfile.open("puppet") do |f| 
+                f.print text 
+                f.flush
+                yield f.path if block_given?
+            end
         end
     end
 
